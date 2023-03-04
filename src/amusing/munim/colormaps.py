@@ -7,7 +7,7 @@ class SingleColorMap:
     def __init__(self, color_rgb: tuple[float], t0: float = 0.5, colormax: float = 1) -> None:
         self.t0 = t0
         self.color_rgb = (color_rgb[0] / colormax, color_rgb[1] / colormax, color_rgb[2] / colormax)
-    
+
     def get(self, arr: np.ndarray) -> np.ndarray:
         if len(arr.shape) == 1:
             return self._get_1darray(arr)

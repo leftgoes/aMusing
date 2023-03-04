@@ -1,6 +1,10 @@
-from audio2numpy import open_audio
+from scipy.io.wavfile import read as read_wav
 import numpy as np
 
+
+def open_audio(filename: str) -> np.ndarray:
+    sr, audio = read_wav(filename)
+    return audio, sr
 
 def fourier(time_domain: np.ndarray) -> np.ndarray:
     return np.fft.fft(time_domain)[:len(time_domain) // 2] / len(time_domain)

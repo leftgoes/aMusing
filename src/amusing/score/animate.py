@@ -256,13 +256,15 @@ class Amusing:
         for measure_index, measures in enumerate(zip(*staves)):  
             measures: tuple[MElement]
             for measure in measures:
+                if measure_index != len(staves[0]) - 1 and not measure[0].contains('BarLine'):
+                    measure[0].append_new('BarLine')
+
                 for element in measure.iter():
                     element: MElement
                     if not element.is_visible():
                         element.lock_visibility()
-                
-                if measure_index != len(staves[0]) - 1 and not measure[0].contains('BarLine'):
-                    measure[0].append(MElement.new_element('BarLine', visible=False))
+                    else:
+                        element.add_implied_children()
 
                 for element in measure.iter():
                     element: MElement

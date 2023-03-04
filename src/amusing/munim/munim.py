@@ -1,3 +1,4 @@
+from matplotlib import cm
 import numpy as np
 from typing import Iterator
 
@@ -26,6 +27,8 @@ class Munim:
 
         if cmap is None:
             self._cmap = ColorMap('viridis')
+        if isinstance(cmap, str):
+            self._cmap = ColorMap(cmap)
         else:
             self._cmap = cmap
             

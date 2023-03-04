@@ -3,6 +3,7 @@ import numpy as np
 from scipy.ndimage import zoom
 
 from .munim import Munim, NoteInfo
+from .colormaps import ColorMap
 
 
 class Spectrum(Munim):
@@ -11,7 +12,7 @@ class Spectrum(Munim):
                                     'G': -2, 'A': 0, 'B': 2}
     _accidental_offset: dict[str, int] = {'bb': -2, 'b': -1, '#': 1, 'x': 2}  
 
-    def __init__(self, fps: int = 30, width: int = 1920, height: int = 1080, cmap: str = 'magma') -> None:
+    def __init__(self, fps: int = 30, width: int = 1920, height: int = 1080, cmap: str | ColorMap = 'magma') -> None:
         super().__init__(fps, width, height, cmap)
 
         self._transformed: np.ndarray = None
@@ -32,24 +33,29 @@ class Spectrum(Munim):
             accidental, octave = note[1:-1], note[-1]
             return self.a4_hz * 2**((pitch + self._accidental_offset[accidental])/12 + int(octave) - 4)
 
-    def normalized(self, gamma: float, highlight_clip: float, invert: bool):
+    def normalized(self, gamma: float, highlight_clip: float, invert_intensity: bool) -> np.ndarray:
         freq = self._transformed - self._transformed.min()
         freq = np.clip(highlight_clip * freq/freq.max(), 0, 1)**gamma
-        return 1 - freq if invert else freq
+        return 1 - freq if invert_intensity else freq
 
-    def render_video(self, filepath: str, fourcc: str = 'mp4v', gamma: float = 1, highlight_clip: float = 1, invert_before: bool = False, invert_after: bool = False, show_frames: bool = False) -> None:
+    def render_video(self, filepath: str, fourcc: str = 'mp4v', gamma: float = 1, highlight_clip: float = 1,
+                     colorize: bool = True, invert_intensity: bool = False, invert_color: bool = False, show_frames: bool = False) -> None:
         self._progress.start()
-        videoout = cv2.VideoWriter(filepath, cv2.VideoWriter_fourcc(*fourcc), self.fps, (self.width, self.height), True)
+        videoout = cv2.VideoWriter(filepath, cv2.VideoWriter_fourcc(*fourcc), self.fps, (self.width, self.height), colorize)
 
-        frames = self.normalized(gamma, highlight_clip, invert_before)
+        frames = self.normalized(gamma, highlight_clip, invert_intensity)
         for i, frame_data in enumerate(frames):
             zoomed = frame_data if frame_data.shape[0] == self.width else zoom(frame_data, self.width / frame_data.shape[0])
-            colored = self.cmap(zoomed)
-            if invert_after: colored = 1 - colored
-            frame = np.uint8(255 * np.tile(colored, (self.height, 1, 1)))
+            
+            if colorize:
+                colored = self._cmap(zoomed)[:, :3][:, ::-1]
+                if invert_color: colored = 1 - colored
+                frame = np.uint8(255 * np.tile(colored, (self.height, 1, 1)))
+            else:
+                frame = np.uint8(255 * np.tile(zoomed, (self.height, 1)))
 
             if show_frames:
-                cv2.imshow(f'frame {i}', frame)
+                cv2.imshow(f'frames', frame)
                 cv2.waitKey(0)
 
             videoout.write(frame)
@@ -68,7 +74,7 @@ class Spectrum(Munim):
 
 
 class STFT(Spectrum):
-    def __init__(self, fps: int = 30, width: int = 1920, height: int = 1080, cmap: str = 'magma') -> None:
+    def __init__(self, fps: int = 30, width: int = 1920, height: int = 1080, cmap: str | ColorMap = 'magma') -> None:
         super().__init__(fps, width, height, cmap)
 
     def transform(self, lowest: NoteInfo = 'A0', highest: NoteInfo = 'C8', snippet_frames_num: float = 20) -> None:
@@ -90,7 +96,7 @@ class STFT(Spectrum):
 
 
 class Wavelet(Spectrum):
-    def __init__(self, fps: int = 30, width: int = 1920, height: int = 1080, cmap: str = 'magma') -> None:
+    def __init__(self, fps: int = 30, width: int = 1920, height: int = 1080, cmap: str | ColorMap = 'magma') -> None:
         super().__init__(fps, width, height, cmap)
     
     @staticmethod
@@ -125,7 +131,7 @@ class Wavelet(Spectrum):
 
 
 class Morlet(Wavelet):
-    def __init__(self, fps: int = 30, width: int = 1920, height: int = 1080, cmap: str = 'magma') -> None:
+    def __init__(self, fps: int = 30, width: int = 1920, height: int = 1080, cmap: str | ColorMap = 'magma') -> None:
         super().__init__(fps, width, height, cmap)
     
     def psi(self, x: np.ndarray, f: float, sigma: float) -> np.ndarray:

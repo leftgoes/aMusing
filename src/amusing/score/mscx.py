@@ -3,7 +3,11 @@ from typing import Self, Iterator, Iterable
 
 CHORD_SUB: list[str] = ['Accidental', 'Stem', 'NoteDot', 'Note', 'Hook']
 GRACENOTE: set[str] = {'grace4', 'acciaccatura', 'appoggiatura', 'grace8after', 'grace16', 'grace16after', 'grace32', 'grace32after'}
-INVISIBILIZE: set[str] = {'Accidental', 'Articulation', 'BarLine', 'Beam', 'Clef', 'Fermata', 'Fingering', 'HairPin', 'KeySig', 'Note', 'Ottava', 'Pedal', 'Segment', 'Slur', 'SlurSegment', 'StaffText', 'Stem', 'SystemText', 'Tempo', 'TextLine', 'TimeSig', 'Tremolo', 'Trill'}
+INVISIBILIZE: set[str] = {'Accidental', 'Articulation',
+                          'BarLine', 'Beam', 'Clef', 'Dynamic', 'Fermata', 'Fingering',
+                          'HairPin', 'Hook', 'KeySig', 'Note', 'Ottava', 'Pedal', 'Rest',
+                          'Segment', 'Slur', 'SlurSegment', 'StaffText', 'Stem', 'StemSlash', 'SystemText',
+                          'Tempo', 'TextLine', 'Tie', 'TieSegment', 'TimeSig', 'Tremolo', 'Trill'}
 UNPRINTABLE: set[str] = {'visible', 'irregular', 'stretch', 'startRepeat', 'endRepeat', 'MeasureNumber', 'LayoutBreak', 'noOffset', 'vspacerUp', 'vspacerDown', 'vspacerFixed'}
 
 
@@ -95,17 +99,28 @@ class MElement(Element):
             if subelement.tag == 'Chord':
                 return subelement, i + index + 1
 
+    def append_new(self, tag: str, text: str | None = None, visible: bool = True) -> None:
+        self.append(type(self).new_element(tag, text, visible))
+
     def contains(self, tag: str) -> bool:
         return self.find(tag) is not None
 
-    def invisibilize(self) -> None:
-        if self.tag == 'visible':
-            return
-        
+    def add_implied_children(self) -> None:
         if self.tag == 'Chord':
-            for subtag in ('Stem', 'Beam'):
+            for subtag in ('Stem', 'Beam', 'Hook'):
                 if not self.contains(subtag):
-                    self.append(type(self).new_element(subtag, visible=False))
+                    self.append_new(subtag)
+
+        if self.tag == 'Tie':
+            if not self.contains('TieSegment'):
+                self.append_new('TieSegment')
+        
+        if self.contains('acciaccatura') and not self.contains('StemSlash'):
+            self.append_new('StemSlash')
+
+    def invisibilize(self) -> None:
+        if self.tag in UNPRINTABLE:
+            return
 
         if self.tag in INVISIBILIZE:
             self.set_invisible()
